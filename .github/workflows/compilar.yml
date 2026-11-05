@@ -144,10 +144,20 @@ jobs:
 
       - name: Inyectar Frase de Enlace y Dominio Regulador
         run: |
-          echo "-D Regulatory_Domain_EU_433=1" >> elrs/src/user_defines.txt
+          # 1. Forzar la creación limpia del archivo user_defines.txt en la ruta exacta
+          cat << 'EOF' > elrs/src/user_defines.txt
+          -D Regulatory_Domain_EU_433=1
+          EOF
+          
+          # 2. Agregar la frase de enlace abajo si fue definida
           if [ "${{ github.event.inputs.binding_phrase }}" != "" ]; then
             echo "-D MY_BINDING_PHRASE=\"${{ github.event.inputs.binding_phrase }}\"" >> elrs/src/user_defines.txt
           fi
+          
+          # 3. Mostrar en la consola qué se guardó para estar 100% seguros
+          echo "=== CONTENIDO DE USER_DEFINES ==="
+          cat elrs/src/user_defines.txt
+
 
       - name: Compilar Receptor (RX)
         run: |
