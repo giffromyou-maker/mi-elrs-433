@@ -88,7 +88,6 @@ jobs:
           	-D CONFIG_TCPIP_LWIP=1
           	-D BEARSSL_SSL_BASIC
           	-D CONFIG_DISABLE_HAL_LOCKS=1
-          	-D Regulatory_Domain_EU_433=1
           	-I ${PROJECTSRC_DIR}/hal
           build_src_filter = ${common_env_data.build_src_filter} -<ESP8266*.*> -<STM32*.*>
           lib_deps =
@@ -113,7 +112,6 @@ jobs:
           	-D BEARSSL_SSL_BASIC
           	-D USE_MSP_WIFI=1
           	-D CONFIG_DISABLE_HAL_LOCKS=1
-          	-D Regulatory_Domain_EU_433=1
           	-I ${PROJECTSRC_DIR}/hal
           build_src_filter = ${common_env_data.build_src_filter} -<ESP8266*.*> -<STM32*.*>
           lib_deps =
@@ -144,10 +142,12 @@ jobs:
           build_src_filter = ${env_common_esp32c3rx.build_src_filter} -<tx_*.cpp>
           EOF
 
-      - name: Inyectar Frase de Enlace (Binding Phrase)
-        if: "${{ github.event.inputs.binding_phrase != '' }}"
+      - name: Inyectar Frase de Enlace y Dominio Regulador
         run: |
-          echo "-D MY_BINDING_PHRASE=\"${{ github.event.inputs.binding_phrase }}\"" >> elrs/src/user_defines.txt
+          echo "-D Regulatory_Domain_EU_433=1" >> elrs/src/user_defines.txt
+          if [ "${{ github.event.inputs.binding_phrase }}" != "" ]; then
+            echo "-D MY_BINDING_PHRASE=\"${{ github.event.inputs.binding_phrase }}\"" >> elrs/src/user_defines.txt
+          fi
 
       - name: Compilar Receptor (RX)
         run: |
@@ -170,4 +170,3 @@ jobs:
         with:
           name: ExpressLRS-433MHz-ESP32C3-Binarios
           path: binarios/
-          
