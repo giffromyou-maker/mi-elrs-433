@@ -14,8 +14,7 @@ jobs:
     steps:
       - name: Descargar ExpressLRS v3.4.3
         run: |
-          git clone --depth 1 --branch 3.4.3 https://github.com elrs
-
+          git clone --depth 1 --branch 3.4.3 https://github.com/ExpressLRS/ExpressLRS.git elrs
       - name: Instalar Python y PlatformIO
         uses: actions/setup-python@v5
         with:
