@@ -1,0 +1,170 @@
+name: Compilar ExpressLRS ESP32-C3 Ra-02 433MHz
+
+on:
+  workflow_dispatch:
+    inputs:
+      binding_phrase:
+        description: 'Frase de enlace (Binding Phrase opcional)'
+        required: false
+        default: 'mi_clave_elrs_433'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar ExpressLRS v3.4.3
+        run: |
+          git clone --depth 1 --branch 3.4.3 https://github.com/ExpressLRS/ExpressLRS.git elrs
+
+      - name: Instalar Python y PlatformIO
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+
+      - name: Inyectar pines y configuracion ESP32-C3 SuperMini + Ra-02 (433MHz)
+        run: |
+          # 1. Crear cabecera de hardware RX
+          cat << 'EOF' > elrs/src/include/target/DIY_ESP32C3_SX1278_433_RX.h
+          #pragma once
+          #ifndef DEVICE_NAME
+          #define DEVICE_NAME "DIY 433 ESP32C3 RX"
+          #endif
+          #define GPIO_PIN_NSS            7
+          #define GPIO_PIN_MOSI           6
+          #define GPIO_PIN_MISO           5
+          #define GPIO_PIN_SCK            4
+          #define GPIO_PIN_RST            3
+          #define GPIO_PIN_DIO0           1
+          #define GPIO_PIN_RCSIGNAL_RX    20
+          #define GPIO_PIN_RCSIGNAL_TX    21
+          #define GPIO_PIN_LED            8
+          #define GPIO_LED_INVERTED       1
+          #define GPIO_PIN_BUTTON         9
+          #define POWER_OUTPUT_FIXED      127
+          EOF
+
+          # 2. Crear cabecera de hardware TX
+          cat << 'EOF' > elrs/src/include/target/DIY_ESP32C3_SX1278_433_TX.h
+          #pragma once
+          #ifndef DEVICE_NAME
+          #define DEVICE_NAME "DIY 433 ESP32C3 TX"
+          #endif
+          #define GPIO_PIN_NSS            7
+          #define GPIO_PIN_MOSI           6
+          #define GPIO_PIN_MISO           5
+          #define GPIO_PIN_SCK            4
+          #define GPIO_PIN_RST            3
+          #define GPIO_PIN_DIO0           1
+          #define GPIO_PIN_RCSIGNAL_RX    20
+          #define GPIO_PIN_RCSIGNAL_TX    21
+          #define GPIO_PIN_LED            8
+          #define GPIO_LED_INVERTED       1
+          #define GPIO_PIN_BUTTON         9
+          #define MinPower                PWR_10mW
+          #define MaxPower                PWR_100mW
+          #define DefaultPower            PWR_50mW
+          #define POWER_OUTPUT_VALUES     {120, 124, 127}
+          EOF
+
+          # 3. Anexar entornos base C3 en common.ini
+          cat << 'EOF' >> elrs/src/targets/common.ini
+          [env_common_esp32c3tx]
+          platform = espressif32@6.4.0
+          board = esp32-c3-devkitm-1
+          board_build.partitions = min_spiffs.csv
+          upload_speed = 460800
+          monitor_speed = 420000
+          board_build.f_cpu = 160000000L
+          extra_scripts =
+          	${env.extra_scripts}
+          	pre:python/build_html.py
+          build_flags =
+          	-D PLATFORM_ESP32=1
+          	-D PLATFORM_ESP32_C3=1
+          	-D CONFIG_TCPIP_LWIP=1
+          	-D BEARSSL_SSL_BASIC
+          	-D CONFIG_DISABLE_HAL_LOCKS=1
+          	-D Regulatory_Domain_EU_433=1
+          	-I ${PROJECTSRC_DIR}/hal
+          build_src_filter = ${common_env_data.build_src_filter} -<ESP8266*.*> -<STM32*.*>
+          lib_deps =
+          	ottowinter/ESPAsyncWebServer-esphome @ 3.0.0
+          	esphome/AsyncTCP-esphome @ 2.0.1
+          	bblanchon/ArduinoJson @ 6.19.4
+
+          [env_common_esp32c3rx]
+          platform = espressif32@6.4.0
+          board = esp32-c3-devkitm-1
+          board_build.partitions = min_spiffs.csv
+          upload_speed = 460800
+          monitor_speed = 420000
+          board_build.f_cpu = 160000000L
+          extra_scripts =
+          	${env.extra_scripts}
+          	pre:python/build_html.py
+          build_flags =
+          	-D PLATFORM_ESP32=1
+          	-D PLATFORM_ESP32_C3=1
+          	-D CONFIG_TCPIP_LWIP=1
+          	-D BEARSSL_SSL_BASIC
+          	-D USE_MSP_WIFI=1
+          	-D CONFIG_DISABLE_HAL_LOCKS=1
+          	-D Regulatory_Domain_EU_433=1
+          	-I ${PROJECTSRC_DIR}/hal
+          build_src_filter = ${common_env_data.build_src_filter} -<ESP8266*.*> -<STM32*.*>
+          lib_deps =
+          	ottowinter/ESPAsyncWebServer-esphome @ 3.0.0
+          	esphome/AsyncTCP-esphome @ 2.0.1
+          	bblanchon/ArduinoJson @ 6.19.4
+          EOF
+
+          # 4. Anexar targets en diy_900.ini
+          cat << 'EOF' >> elrs/src/targets/diy_900.ini
+          [env:DIY_ESP32C3_SX1278_433_TX]
+          extends = env_common_esp32c3tx, radio_900
+          build_flags =
+          	${env_common_esp32c3tx.build_flags}
+          	${radio_900.build_flags}
+          	${common_env_data.build_flags_tx}
+          	-include target/DIY_ESP32C3_SX1278_433_TX.h
+          build_src_filter = ${env_common_esp32c3tx.build_src_filter} -<rx_*.cpp>
+
+          [env:DIY_ESP32C3_SX1278_433_RX]
+          extends = env_common_esp32c3rx, radio_900
+          build_flags =
+          	${env_common_esp32c3rx.build_flags}
+          	${radio_900.build_flags}
+          	${common_env_data.build_flags_rx}
+          	-include target/DIY_ESP32C3_SX1278_433_RX.h
+          build_src_filter = ${env_common_esp32c3rx.build_src_filter} -<tx_*.cpp>
+          EOF
+
+      - name: Inyectar Frase de Enlace (Binding Phrase)
+        if: "${{ github.event.inputs.binding_phrase != '' }}"
+        run: |
+          echo "-D MY_BINDING_PHRASE=\"${{ github.event.inputs.binding_phrase }}\"" >> elrs/src/user_defines.txt
+
+      - name: Compilar Receptor (RX)
+        run: |
+          cd elrs/src
+          pio run -e DIY_ESP32C3_SX1278_433_RX
+
+      - name: Compilar Transmisor (TX)
+        run: |
+          cd elrs/src
+          pio run -e DIY_ESP32C3_SX1278_433_TX
+
+      - name: Empaquetar Binarios
+        run: |
+          mkdir -p binarios
+          find elrs/src/.pio/build/ -name "firmware.bin" -path "*/DIY_ESP32C3_SX1278_433_RX/*" -exec cp {} binarios/firmware_RX_433_ESP32C3.bin \;
+          find elrs/src/.pio/build/ -name "firmware.bin" -path "*/DIY_ESP32C3_SX1278_433_TX/*" -exec cp {} binarios/firmware_TX_433_ESP32C3.bin \;
+
+      - name: Subir Archivos para Descarga
+        uses: actions/upload-artifact@v4
+        with:
+          name: ExpressLRS-433MHz-ESP32C3-Binarios
+          path: binarios/
