@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Descargar ExpressLRS v3.4.3
         run: |
-          git clone --depth 1 --branch 3.4.3 https://github.com/ExpressLRS/ExpressLRS.git elrs
+          git clone --depth 1 --branch 3.4.3 https://github.com elrs
 
       - name: Instalar Python y PlatformIO
         uses: actions/setup-python@v5
@@ -69,7 +69,8 @@ jobs:
           #define POWER_OUTPUT_VALUES     {120, 124, 127}
           EOF
 
-          # 3. Anexar entornos base C3 en common.ini
+          # 3. Anexar entornos base C3 en common.ini (Asegurando salto de línea previo)
+          echo "" >> elrs/src/targets/common.ini
           cat << 'EOF' >> elrs/src/targets/common.ini
           [env_common_esp32c3tx]
           platform = espressif32@6.4.0
@@ -121,7 +122,8 @@ jobs:
           	bblanchon/ArduinoJson @ 6.19.4
           EOF
 
-          # 4. Anexar targets en diy_900.ini
+          # 4. Anexar targets en diy_900.ini (Asegurando salto de línea previo)
+          echo "" >> elrs/src/targets/diy_900.ini
           cat << 'EOF' >> elrs/src/targets/diy_900.ini
           [env:DIY_ESP32C3_SX1278_433_TX]
           extends = env_common_esp32c3tx, radio_900
@@ -168,3 +170,4 @@ jobs:
         with:
           name: ExpressLRS-433MHz-ESP32C3-Binarios
           path: binarios/
+          
