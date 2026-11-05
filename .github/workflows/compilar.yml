@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Descargar ExpressLRS v3.4.3
         run: |
-          git clone --depth 1 --branch 3.4.3 https://github.com/ExpressLRS/ExpressLRS.git elrs
+          git clone --depth 1 --branch 3.4.3 https://github.com elrs
 
       - name: Instalar Python y PlatformIO
         uses: actions/setup-python@v5
@@ -142,32 +142,23 @@ jobs:
           build_src_filter = ${env_common_esp32c3rx.build_src_filter} -<tx_*.cpp>
           EOF
 
-      - name: Inyectar Frase de Enlace y Dominio Regulador
-        run: |
-          # 1. Forzar la creación limpia del archivo user_defines.txt en la ruta exacta
-          cat << 'EOF' > elrs/src/user_defines.txt
-          -D Regulatory_Domain_EU_433=1
-          EOF
-          
-          # 2. Agregar la frase de enlace abajo si fue definida
-          if [ "${{ github.event.inputs.binding_phrase }}" != "" ]; then
-            echo "-D MY_BINDING_PHRASE=\"${{ github.event.inputs.binding_phrase }}\"" >> elrs/src/user_defines.txt
-          fi
-          
-          # 3. Mostrar en la consola qué se guardó para estar 100% seguros
-          echo "=== CONTENIDO DE USER_DEFINES ==="
-          cat elrs/src/user_defines.txt
-
-
       - name: Compilar Receptor (RX)
         run: |
           cd elrs/src
-          pio run -e DIY_ESP32C3_SX1278_433_RX
+          if [ "${{ github.event.inputs.binding_phrase }}" != "" ]; then
+            pio run -e DIY_ESP32C3_SX1278_433_RX --build-flag "-D Regulatory_Domain_EU_433=1" --build-flag "-D MY_BINDING_PHRASE=\"${{ github.event.inputs.binding_phrase }}\""
+          else
+            pio run -e DIY_ESP32C3_SX1278_433_RX --build-flag "-D Regulatory_Domain_EU_433=1"
+          fi
 
       - name: Compilar Transmisor (TX)
         run: |
           cd elrs/src
-          pio run -e DIY_ESP32C3_SX1278_433_TX
+          if [ "${{ github.event.inputs.binding_phrase }}" != "" ]; then
+            pio run -e DIY_ESP32C3_SX1278_433_TX --build-flag "-D Regulatory_Domain_EU_433=1" --build-flag "-D MY_BINDING_PHRASE=\"${{ github.event.inputs.binding_phrase }}\""
+          else
+            pio run -e DIY_ESP32C3_SX1278_433_TX --build-flag "-D Regulatory_Domain_EU_433=1"
+          fi
 
       - name: Empaquetar Binarios
         run: |
